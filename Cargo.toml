@@ -1,0 +1,15 @@
+[package]
+name = "nodio"
+version = "0.1.0"
+edition = "2021"
+authors = ["Patryk 'PsichiX' Budzynski <psichix@gmail.com>"]
+description = "Ergonomic graph data storage with queries over relations"
+license = "MIT OR Apache-2.0"
+homepage = "https://github.com/PsichiX/nodio"
+repository = "https://github.com/PsichiX/nodio"
+documentation = "https://docs.rs/nodio"
+readme = "README.md"
+
+[dependencies]
+intuicio-data = "0.44"
+intuicio-framework-arena = "0.44"

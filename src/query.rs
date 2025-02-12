@@ -51,14 +51,14 @@ impl<'a> QueryFetch<'a> for () {
 
 impl<'a> QueryFetch<'a> for AnyIndex {
     type Value = AnyIndex;
-    type Access = AnyIndex;
+    type Access = Option<AnyIndex>;
 
     fn access(_: &'a Graph, index: AnyIndex) -> Self::Access {
-        index
+        Some(index)
     }
 
     fn fetch(access: &mut Self::Access) -> Option<Self::Value> {
-        Some(*access)
+        access.take()
     }
 }
 

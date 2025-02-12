@@ -23,17 +23,14 @@ mod tests {
     struct Tree;
     struct Fire;
 
-    #[allow(dead_code)]
     #[derive(Debug)]
     struct Controller {
         forward: bool,
     }
 
-    #[allow(dead_code)]
     #[derive(Debug)]
     struct Position(i32, i32);
 
-    #[allow(dead_code)]
     #[derive(Debug)]
     struct Health(usize);
 
@@ -81,6 +78,7 @@ mod tests {
             if controller.forward {
                 println!("Player: {} moves forward!", player);
                 position.0 += 1;
+                position.1 += 2;
             }
         }
 

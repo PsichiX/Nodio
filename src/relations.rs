@@ -1,10 +1,10 @@
 use intuicio_framework_arena::AnyIndex;
 use std::collections::{HashMap, HashSet};
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub(crate) struct RelationsTable {
-    outgoing: HashMap<AnyIndex, HashSet<AnyIndex>>,
-    incoming: HashMap<AnyIndex, HashSet<AnyIndex>>,
+    pub(crate) outgoing: HashMap<AnyIndex, HashSet<AnyIndex>>,
+    pub(crate) incoming: HashMap<AnyIndex, HashSet<AnyIndex>>,
 }
 
 impl RelationsTable {

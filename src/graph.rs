@@ -15,8 +15,8 @@ use std::{
 
 #[derive(Default)]
 pub struct Graph {
-    nodes: AnyArena,
-    relations: HashMap<TypeHash, RelationsTable>,
+    pub(crate) nodes: AnyArena,
+    pub(crate) relations: HashMap<TypeHash, RelationsTable>,
 }
 
 impl Graph {
@@ -45,16 +45,25 @@ impl Graph {
     }
 
     pub fn is<T>(&self, index: AnyIndex) -> bool {
-        // TODO: add `is` test to any arena.
-        self.nodes.read::<T>(index).is_ok()
+        self.nodes.is::<T>(index).unwrap_or_default()
     }
 
     pub fn read<T>(&self, index: AnyIndex) -> Result<ValueReadAccess<T>, ArenaError> {
         self.nodes.read(index)
     }
 
+    /// # Safety
+    pub unsafe fn read_ptr(&self, index: AnyIndex) -> Result<*const u8, ArenaError> {
+        self.nodes.read_ptr(index)
+    }
+
     pub fn write<T>(&self, index: AnyIndex) -> Result<ValueWriteAccess<T>, ArenaError> {
         self.nodes.write(index)
+    }
+
+    /// # Safety
+    pub unsafe fn write_ptr(&self, index: AnyIndex) -> Result<*mut u8, ArenaError> {
+        self.nodes.write_ptr(index)
     }
 
     pub fn relate<T>(&mut self, from: AnyIndex, to: AnyIndex) {
@@ -102,10 +111,22 @@ impl Graph {
             .flat_map(move |relations| relations.outgoing(from))
     }
 
+    pub fn relations_outgoing_any(&self, from: AnyIndex) -> impl Iterator<Item = AnyIndex> + '_ {
+        self.relations
+            .values()
+            .flat_map(move |relations| relations.outgoing(from))
+    }
+
     pub fn relations_incomming<T>(&self, from: AnyIndex) -> impl Iterator<Item = AnyIndex> + '_ {
         self.relations
             .get(&TypeHash::of::<T>())
             .into_iter()
+            .flat_map(move |relations| relations.incoming(from))
+    }
+
+    pub fn relations_incomming_any(&self, from: AnyIndex) -> impl Iterator<Item = AnyIndex> + '_ {
+        self.relations
+            .values()
             .flat_map(move |relations| relations.incoming(from))
     }
 
@@ -114,6 +135,10 @@ impl Graph {
         from: AnyIndex,
     ) -> impl Iterator<Item = AnyIndex> + 'a {
         GraphTraverseIter::<T>::new(self, from)
+    }
+
+    pub fn relations_traverse_any(&self, from: AnyIndex) -> impl Iterator<Item = AnyIndex> + '_ {
+        GraphTraverseAnyIter::new(self, from)
     }
 
     pub fn find<R, T>(&self, from: AnyIndex) -> impl Iterator<Item = AnyIndex> + '_ {
@@ -143,6 +168,10 @@ impl Graph {
                 .map(|index| AnyIndex::new(index, arena.type_hash()))
                 .zip(arena.iter_mut::<T>())
         })
+    }
+
+    pub fn indices(&self) -> impl Iterator<Item = AnyIndex> + '_ {
+        self.nodes.indices()
     }
 }
 
@@ -174,6 +203,43 @@ impl<T> Iterator for GraphTraverseIter<'_, T> {
             }
             self.visited.insert(index);
             for index in self.graph.relations_outgoing::<T>(index) {
+                if self.stack.len() == self.stack.capacity() {
+                    self.stack.reserve_exact(self.stack.capacity());
+                }
+                self.stack.push_back(index);
+            }
+            return Some(index);
+        }
+        None
+    }
+}
+
+pub struct GraphTraverseAnyIter<'a> {
+    graph: &'a Graph,
+    stack: VecDeque<AnyIndex>,
+    visited: HashSet<AnyIndex>,
+}
+
+impl<'a> GraphTraverseAnyIter<'a> {
+    fn new(graph: &'a Graph, index: AnyIndex) -> Self {
+        Self {
+            graph,
+            stack: [index].into(),
+            visited: Default::default(),
+        }
+    }
+}
+
+impl Iterator for GraphTraverseAnyIter<'_> {
+    type Item = AnyIndex;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(index) = self.stack.pop_front() {
+            if self.visited.contains(&index) {
+                continue;
+            }
+            self.visited.insert(index);
+            for index in self.graph.relations_outgoing_any(index) {
                 if self.stack.len() == self.stack.capacity() {
                     self.stack.reserve_exact(self.stack.capacity());
                 }

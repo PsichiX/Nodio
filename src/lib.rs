@@ -1,37 +1,61 @@
 pub mod graph;
+pub mod prefab;
 pub mod query;
 pub mod relations;
 
 pub use intuicio_framework_arena::AnyIndex;
 
+pub mod third_party {
+    pub use intuicio_core;
+    pub use intuicio_data;
+    pub use intuicio_derive;
+    pub use intuicio_framework_serde;
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{
         graph::Graph,
+        prefab::Prefab,
         query::{Is, Node, Query, Related, Traverse},
     };
+    use intuicio_core::prelude::*;
     use intuicio_framework_arena::AnyIndex;
+    use intuicio_framework_serde::SerializationRegistry;
+    use serde::{Deserialize, Serialize};
 
     fn is_async<T: Send + Sync>() {}
 
-    struct Child;
+    #[derive(Default, Serialize, Deserialize)]
     struct Parent;
+
+    #[derive(Default, Serialize, Deserialize)]
+    struct Child;
+
+    #[derive(Default, Serialize, Deserialize)]
     struct Effect;
+
+    #[derive(Default, Serialize, Deserialize)]
     struct Attribute;
 
+    #[derive(Default, Serialize, Deserialize)]
     struct Player;
+
+    #[derive(Default, Serialize, Deserialize)]
     struct Tree;
+
+    #[derive(Default, Serialize, Deserialize)]
     struct Fire;
 
-    #[derive(Debug)]
+    #[derive(Debug, Default, Serialize, Deserialize)]
     struct Controller {
         forward: bool,
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, Default, Serialize, Deserialize)]
     struct Position(i32, i32);
 
-    #[derive(Debug)]
+    #[derive(Debug, Default, Serialize, Deserialize)]
     struct Health(usize);
 
     #[test]
@@ -103,6 +127,41 @@ mod tests {
         {
             println!("Name: {}", &*name);
         }
+
+        let registry = Registry::default()
+            .with_basic_types()
+            .with_type(NativeStructBuilder::new::<Parent>().build())
+            .with_type(NativeStructBuilder::new::<Child>().build())
+            .with_type(NativeStructBuilder::new::<Effect>().build())
+            .with_type(NativeStructBuilder::new::<Attribute>().build())
+            .with_type(NativeStructBuilder::new::<Player>().build())
+            .with_type(NativeStructBuilder::new::<Tree>().build())
+            .with_type(NativeStructBuilder::new::<Fire>().build())
+            .with_type(NativeStructBuilder::new::<Controller>().build())
+            .with_type(NativeStructBuilder::new::<Position>().build())
+            .with_type(NativeStructBuilder::new::<Health>().build());
+
+        let serialization = SerializationRegistry::default()
+            .with_basic_types()
+            .with_serde::<Parent>()
+            .with_serde::<Child>()
+            .with_serde::<Effect>()
+            .with_serde::<Attribute>()
+            .with_serde::<Player>()
+            .with_serde::<Tree>()
+            .with_serde::<Fire>()
+            .with_serde::<Controller>()
+            .with_serde::<Position>()
+            .with_serde::<Health>();
+
+        let prefab = Prefab::from_graph(&graph, &serialization, &registry).unwrap();
+        let graph2 = prefab.to_graph(&serialization, &registry).unwrap().0;
+        let mut indices = graph.indices().collect::<Vec<_>>();
+        let mut indices2 = graph2.indices().collect::<Vec<_>>();
+        indices.sort();
+        indices2.sort();
+        assert_eq!(indices, indices2);
+        assert_eq!(graph.relations, graph2.relations);
 
         graph.clear();
     }

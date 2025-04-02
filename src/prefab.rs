@@ -4,10 +4,7 @@ use intuicio_data::type_hash::TypeHash;
 use intuicio_framework_arena::{AnyArena, AnyIndex, ArenaError, Index};
 use intuicio_framework_serde::{Intermediate, SerializationRegistry};
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::{HashMap, HashSet},
-    error::Error,
-};
+use std::{collections::HashMap, error::Error};
 
 #[derive(Debug)]
 pub enum PrefabError {
@@ -82,25 +79,26 @@ pub struct PrefabNodesArchetype {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct PrefabRelationsTableItem {
+pub struct PrefabRelationsPairItem {
     pub data_type: PrefabDataType,
     pub index: Index,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct PrefabRelationsTable {
-    pub source_data_type: PrefabDataType,
-    pub source_index: Index,
-    pub target: Vec<PrefabRelationsTableItem>,
+pub struct PrefabRelationsPair {
+    pub source: PrefabRelationsPairItem,
+    pub target: PrefabRelationsPairItem,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PrefabRelationArchetype {
     pub data_type: PrefabDataType,
-    pub incoming: Vec<PrefabRelationsTable>,
-    pub outgoing: Vec<PrefabRelationsTable>,
+    pub pairs: Vec<PrefabRelationsPair>,
 }
 
+/// A prefab is a serialized representation of a graph.
+/// It contains the nodes and relations of the graph,
+/// and can be used to recreate the graph later.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Prefab {
     pub nodes: Vec<PrefabNodesArchetype>,
@@ -108,6 +106,15 @@ pub struct Prefab {
 }
 
 impl Prefab {
+    /// Creates a new prefab from a graph.
+    ///
+    /// # Arguments
+    /// * `graph` - The graph to create the prefab from.
+    /// * `serialization` - The serialization registry to use for serialization.
+    /// * `registry` - The registry to use for type lookups.
+    ///
+    /// # Returns
+    /// A result containing the prefab or an error.
     pub fn from_graph(
         graph: &Graph,
         serialization: &SerializationRegistry,
@@ -162,102 +169,53 @@ impl Prefab {
                     type_name: type_.name().to_owned(),
                     module_name: type_.module_name().map(|name| name.to_owned()),
                 };
-                let incoming = table
-                    .incoming
-                    .iter()
-                    .map(|(source, target)| {
-                        let source_type = registry
-                            .find_type(TypeQuery {
-                                type_hash: Some(source.type_hash()),
-                                ..Default::default()
-                            })
-                            .ok_or_else(|| PrefabError::CouldNotFindType(source.type_hash()))?;
-                        let source_data_type = PrefabDataType {
-                            type_name: source_type.name().to_owned(),
-                            module_name: source_type.module_name().map(|name| name.to_owned()),
-                        };
-                        Ok(PrefabRelationsTable {
-                            source_data_type,
-                            source_index: source.index(),
-                            target: target
-                                .iter()
-                                .map(|target| {
-                                    let target_type = registry
-                                        .find_type(TypeQuery {
-                                            type_hash: Some(target.type_hash()),
-                                            ..Default::default()
-                                        })
-                                        .ok_or_else(|| {
-                                            PrefabError::CouldNotFindType(target.type_hash())
-                                        })?;
-                                    let target_data_type = PrefabDataType {
-                                        type_name: target_type.name().to_owned(),
-                                        module_name: target_type
-                                            .module_name()
-                                            .map(|name| name.to_owned()),
-                                    };
-                                    Ok(PrefabRelationsTableItem {
-                                        data_type: target_data_type,
-                                        index: target.index(),
-                                    })
-                                })
-                                .collect::<Result<Vec<_>, PrefabError>>()?,
+                let mut pairs = Vec::<PrefabRelationsPair>::default();
+                for (source, target) in table.iter() {
+                    let source_type = registry
+                        .find_type(TypeQuery {
+                            type_hash: Some(source.type_hash()),
+                            ..Default::default()
                         })
-                    })
-                    .collect::<Result<Vec<_>, PrefabError>>()?;
-                let outgoing = table
-                    .outgoing
-                    .iter()
-                    .map(|(source, target)| {
-                        let source_type = registry
-                            .find_type(TypeQuery {
-                                type_hash: Some(source.type_hash()),
-                                ..Default::default()
-                            })
-                            .ok_or_else(|| PrefabError::CouldNotFindType(source.type_hash()))?;
-                        let source_data_type = PrefabDataType {
-                            type_name: source_type.name().to_owned(),
-                            module_name: source_type.module_name().map(|name| name.to_owned()),
-                        };
-                        Ok(PrefabRelationsTable {
-                            source_data_type,
-                            source_index: source.index(),
-                            target: target
-                                .iter()
-                                .map(|target| {
-                                    let target_type = registry
-                                        .find_type(TypeQuery {
-                                            type_hash: Some(target.type_hash()),
-                                            ..Default::default()
-                                        })
-                                        .ok_or_else(|| {
-                                            PrefabError::CouldNotFindType(target.type_hash())
-                                        })?;
-                                    let target_data_type = PrefabDataType {
-                                        type_name: target_type.name().to_owned(),
-                                        module_name: target_type
-                                            .module_name()
-                                            .map(|name| name.to_owned()),
-                                    };
-                                    Ok(PrefabRelationsTableItem {
-                                        data_type: target_data_type,
-                                        index: target.index(),
-                                    })
-                                })
-                                .collect::<Result<Vec<_>, PrefabError>>()?,
+                        .ok_or_else(|| PrefabError::CouldNotFindType(source.type_hash()))?;
+                    let source_data_type = PrefabDataType {
+                        type_name: source_type.name().to_owned(),
+                        module_name: source_type.module_name().map(|name| name.to_owned()),
+                    };
+                    let target_type = registry
+                        .find_type(TypeQuery {
+                            type_hash: Some(target.type_hash()),
+                            ..Default::default()
                         })
-                    })
-                    .collect::<Result<Vec<_>, PrefabError>>()?;
-                Ok(PrefabRelationArchetype {
-                    data_type,
-                    outgoing,
-                    incoming,
-                })
+                        .ok_or_else(|| PrefabError::CouldNotFindType(target.type_hash()))?;
+                    let target_data_type = PrefabDataType {
+                        type_name: target_type.name().to_owned(),
+                        module_name: target_type.module_name().map(|name| name.to_owned()),
+                    };
+                    pairs.push(PrefabRelationsPair {
+                        source: PrefabRelationsPairItem {
+                            data_type: source_data_type.clone(),
+                            index: source.index(),
+                        },
+                        target: PrefabRelationsPairItem {
+                            data_type: target_data_type,
+                            index: target.index(),
+                        },
+                    });
+                }
+                Ok(PrefabRelationArchetype { data_type, pairs })
             })
             .collect::<Result<Vec<_>, PrefabError>>()?;
         Ok(Self { nodes, relations })
     }
 
+    /// Converts the prefab into a graph.
+    ///
+    /// # Arguments
+    /// * `serialization` - The serialization registry to use for deserialization.
+    /// * `registry` - The registry to use for type lookups.
+    ///
+    /// # Returns
+    /// A result containing the graph and a mapping of old indices to new indices.
     pub fn to_graph(
         &self,
         serialization: &SerializationRegistry,
@@ -318,119 +276,55 @@ impl Prefab {
                         type_name: archetype.data_type.type_name.to_owned(),
                         module_name: archetype.data_type.module_name.to_owned(),
                     })?;
-                let outgoing = archetype
-                    .outgoing
-                    .iter()
-                    .map(|table| {
-                        let source_type = registry
-                            .find_type(TypeQuery {
-                                name: Some(table.source_data_type.type_name.as_str().into()),
-                                module_name: table
-                                    .source_data_type
-                                    .module_name
-                                    .as_ref()
-                                    .map(|name| name.as_str().into()),
-                                ..Default::default()
-                            })
-                            .ok_or_else(|| PrefabError::CouldNotDeserializeType {
-                                type_name: table.source_data_type.type_name.to_owned(),
-                                module_name: table.source_data_type.module_name.to_owned(),
-                            })?;
-                        let target = table
-                            .target
-                            .iter()
-                            .map(|target| {
-                                let target_type = registry
-                                    .find_type(TypeQuery {
-                                        name: Some(target.data_type.type_name.as_str().into()),
-                                        module_name: target
-                                            .data_type
-                                            .module_name
-                                            .as_ref()
-                                            .map(|name| name.as_str().into()),
-                                        ..Default::default()
-                                    })
-                                    .ok_or_else(|| PrefabError::CouldNotDeserializeType {
-                                        type_name: target.data_type.type_name.to_owned(),
-                                        module_name: target.data_type.module_name.to_owned(),
-                                    })?;
-                                let index = AnyIndex::new(target.index, target_type.type_hash());
-                                let index = mappings.get(&index).copied().ok_or_else(|| {
-                                    PrefabError::Arena(ArenaError::IndexNotFound {
-                                        type_hash: index.type_hash(),
-                                        index: index.index(),
-                                    })
-                                })?;
-                                Ok(index)
-                            })
-                            .collect::<Result<HashSet<_>, PrefabError>>()?;
-                        let index = AnyIndex::new(table.source_index, source_type.type_hash());
-                        let index = mappings.get(&index).copied().ok_or_else(|| {
-                            PrefabError::Arena(ArenaError::IndexNotFound {
-                                type_hash: index.type_hash(),
-                                index: index.index(),
-                            })
+                let mut table = RelationsTable::default();
+                for pair in &archetype.pairs {
+                    let source_type = registry
+                        .find_type(TypeQuery {
+                            name: Some(pair.source.data_type.type_name.as_str().into()),
+                            module_name: pair
+                                .source
+                                .data_type
+                                .module_name
+                                .as_ref()
+                                .map(|name| name.as_str().into()),
+                            ..Default::default()
+                        })
+                        .ok_or_else(|| PrefabError::CouldNotDeserializeType {
+                            type_name: pair.source.data_type.type_name.to_owned(),
+                            module_name: pair.source.data_type.module_name.to_owned(),
                         })?;
-                        Ok((index, target))
-                    })
-                    .collect::<Result<HashMap<_, _>, PrefabError>>()?;
-                let incoming = archetype
-                    .incoming
-                    .iter()
-                    .map(|table| {
-                        let source_type = registry
-                            .find_type(TypeQuery {
-                                name: Some(table.source_data_type.type_name.as_str().into()),
-                                module_name: table
-                                    .source_data_type
-                                    .module_name
-                                    .as_ref()
-                                    .map(|name| name.as_str().into()),
-                                ..Default::default()
-                            })
-                            .ok_or_else(|| PrefabError::CouldNotDeserializeType {
-                                type_name: table.source_data_type.type_name.to_owned(),
-                                module_name: table.source_data_type.module_name.to_owned(),
-                            })?;
-                        let target = table
-                            .target
-                            .iter()
-                            .map(|target| {
-                                let target_type = registry
-                                    .find_type(TypeQuery {
-                                        name: Some(target.data_type.type_name.as_str().into()),
-                                        module_name: target
-                                            .data_type
-                                            .module_name
-                                            .as_ref()
-                                            .map(|name| name.as_str().into()),
-                                        ..Default::default()
-                                    })
-                                    .ok_or_else(|| PrefabError::CouldNotDeserializeType {
-                                        type_name: target.data_type.type_name.to_owned(),
-                                        module_name: target.data_type.module_name.to_owned(),
-                                    })?;
-                                let index = AnyIndex::new(target.index, target_type.type_hash());
-                                let index = mappings.get(&index).copied().ok_or_else(|| {
-                                    PrefabError::Arena(ArenaError::IndexNotFound {
-                                        type_hash: index.type_hash(),
-                                        index: index.index(),
-                                    })
-                                })?;
-                                Ok(index)
-                            })
-                            .collect::<Result<HashSet<_>, PrefabError>>()?;
-                        let index = AnyIndex::new(table.source_index, source_type.type_hash());
-                        let index = mappings.get(&index).copied().ok_or_else(|| {
-                            PrefabError::Arena(ArenaError::IndexNotFound {
-                                type_hash: index.type_hash(),
-                                index: index.index(),
-                            })
+                    let target_type = registry
+                        .find_type(TypeQuery {
+                            name: Some(pair.target.data_type.type_name.as_str().into()),
+                            module_name: pair
+                                .target
+                                .data_type
+                                .module_name
+                                .as_ref()
+                                .map(|name| name.as_str().into()),
+                            ..Default::default()
+                        })
+                        .ok_or_else(|| PrefabError::CouldNotDeserializeType {
+                            type_name: pair.target.data_type.type_name.to_owned(),
+                            module_name: pair.target.data_type.module_name.to_owned(),
                         })?;
-                        Ok((index, target))
-                    })
-                    .collect::<Result<HashMap<_, _>, PrefabError>>()?;
-                Ok((type_.type_hash(), RelationsTable { outgoing, incoming }))
+                    let source = AnyIndex::new(pair.source.index, source_type.type_hash());
+                    let source = mappings.get(&source).copied().ok_or_else(|| {
+                        PrefabError::Arena(ArenaError::IndexNotFound {
+                            type_hash: source.type_hash(),
+                            index: source.index(),
+                        })
+                    })?;
+                    let target = AnyIndex::new(pair.target.index, target_type.type_hash());
+                    let target = mappings.get(&target).copied().ok_or_else(|| {
+                        PrefabError::Arena(ArenaError::IndexNotFound {
+                            type_hash: target.type_hash(),
+                            index: target.index(),
+                        })
+                    })?;
+                    table.insert(source, target);
+                }
+                Ok((type_.type_hash(), table))
             })
             .collect::<Result<HashMap<_, _>, PrefabError>>()?;
         Ok((Graph { nodes, relations }, mappings))

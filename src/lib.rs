@@ -1,8 +1,9 @@
 pub mod graph;
 pub mod prefab;
 pub mod query;
-pub mod relations;
+mod relations;
 
+/// Node index type of the graph.
 pub use intuicio_framework_arena::AnyIndex;
 
 pub mod third_party {
@@ -164,5 +165,23 @@ mod tests {
         assert_eq!(graph.relations, graph2.relations);
 
         graph.clear();
+    }
+
+    #[test]
+    fn test_cycles() {
+        let mut graph = Graph::default();
+        let a = graph.insert(());
+        let b = graph.insert(());
+        let c = graph.insert(());
+        let d = graph.insert(());
+
+        graph.relate::<()>(a, b);
+        graph.relate::<()>(a, c);
+        graph.relate::<()>(b, d);
+        graph.relate::<()>(c, d);
+        assert!(graph.find_cycles::<()>().next().is_none());
+
+        graph.relate::<()>(d, a);
+        assert!(graph.find_cycles::<()>().next().is_some());
     }
 }

@@ -3,8 +3,8 @@ use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub(crate) struct RelationsTable {
-    pub(crate) outgoing: HashMap<AnyIndex, HashSet<AnyIndex>>,
-    pub(crate) incoming: HashMap<AnyIndex, HashSet<AnyIndex>>,
+    outgoing: HashMap<AnyIndex, HashSet<AnyIndex>>,
+    incoming: HashMap<AnyIndex, HashSet<AnyIndex>>,
 }
 
 impl RelationsTable {
@@ -46,10 +46,16 @@ impl RelationsTable {
             .flat_map(|set| set.iter().copied())
     }
 
-    pub(crate) fn incoming(&self, from: AnyIndex) -> impl Iterator<Item = AnyIndex> + '_ {
+    pub(crate) fn incoming(&self, to: AnyIndex) -> impl Iterator<Item = AnyIndex> + '_ {
         self.incoming
-            .get(&from)
+            .get(&to)
             .into_iter()
             .flat_map(|set| set.iter().copied())
+    }
+
+    pub(crate) fn iter(&self) -> impl Iterator<Item = (AnyIndex, AnyIndex)> + '_ {
+        self.outgoing
+            .iter()
+            .flat_map(|(from, set)| set.iter().map(move |to| (*from, *to)))
     }
 }

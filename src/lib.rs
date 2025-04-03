@@ -3,7 +3,7 @@ pub mod prefab;
 pub mod query;
 mod relations;
 
-/// Node index type of the graph.
+pub use intuicio_data::lifetime::{ValueReadAccess, ValueWriteAccess};
 pub use intuicio_framework_arena::AnyIndex;
 
 pub mod third_party {

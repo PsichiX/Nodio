@@ -1,6 +1,7 @@
 pub mod graph;
 pub mod prefab;
 pub mod query;
+
 mod relations;
 
 pub use intuicio_data::lifetime::{ValueReadAccess, ValueWriteAccess};
@@ -10,6 +11,7 @@ pub mod third_party {
     pub use intuicio_core;
     pub use intuicio_data;
     pub use intuicio_derive;
+    pub use intuicio_framework_arena;
     pub use intuicio_framework_serde;
 }
 

@@ -63,6 +63,11 @@ impl Graph {
         self.relations.clear();
     }
 
+    /// Checks if the graph contains a node with the specified index.
+    pub fn contains(&self, index: AnyIndex) -> bool {
+        self.nodes.contains(index)
+    }
+
     /// Checks if the graph node at the specified index is of the specified type.
     ///
     /// # Arguments

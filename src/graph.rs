@@ -99,7 +99,7 @@ impl Graph {
     /// The caller must ensure that the pointer is used safely and does not lead
     /// to undefined behavior, since they get unrestricted memory block.
     pub unsafe fn read_ptr(&self, index: AnyIndex) -> Result<*const u8, ArenaError> {
-        self.nodes.read_ptr(index)
+        unsafe { self.nodes.read_ptr(index) }
     }
 
     /// Returns mutable write access to the node at the specified index.
@@ -125,7 +125,7 @@ impl Graph {
     /// The caller must ensure that the pointer is used safely and does not lead
     /// to undefined behavior, since they get unrestricted memory block.
     pub unsafe fn write_ptr(&self, index: AnyIndex) -> Result<*mut u8, ArenaError> {
-        self.nodes.write_ptr(index)
+        unsafe { self.nodes.write_ptr(index) }
     }
 
     /// Relates two nodes with specified relation category.
@@ -151,9 +151,9 @@ impl Graph {
     ///
     /// # Type Parameters
     /// * `I` - The type of the relation category for the target node towards
-    ///     source node.
+    ///   source node.
     /// * `O` - The type of the relation category for the source node towards
-    ///    target node.
+    ///   target node.
     pub fn relate_pair<I, O>(&mut self, from: AnyIndex, to: AnyIndex) {
         self.relate::<O>(from, to);
         self.relate::<I>(to, from);
@@ -182,7 +182,7 @@ impl Graph {
     ///
     /// # Type Parameters
     /// * `I` - The type of the relation category for the target node towards
-    ///    source node.
+    ///   source node.
     /// * `O` - The type of the relation category for the source node towards
     ///   target node.
     pub fn unrelate_pair<I, O>(&mut self, from: AnyIndex, to: AnyIndex) {
@@ -447,11 +447,7 @@ impl Graph {
     pub fn find_cycles<T>(&self) -> impl Iterator<Item = Vec<AnyIndex>> + '_ {
         self.nodes.indices().filter_map(|index| {
             let cycle = self.find_cycle::<T>(index);
-            if cycle.is_empty() {
-                None
-            } else {
-                Some(cycle)
-            }
+            if cycle.is_empty() { None } else { Some(cycle) }
         })
     }
 

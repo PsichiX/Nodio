@@ -9,6 +9,7 @@ build:
 
 test:
   cargo test --all --all-features
+  cargo test --tests --all --all-features
 
 miri:
   cargo +nightly miri test --manifest-path ./Cargo.toml

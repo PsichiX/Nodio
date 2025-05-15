@@ -1,6 +1,6 @@
 [package]
 name = "nodio"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2024"
 authors = ["Patryk 'PsichiX' Budzynski <psichix@gmail.com>"]
 description = "Ergonomic graph data storage with queries over relations"
@@ -11,9 +11,9 @@ documentation = "https://docs.rs/nodio"
 readme = "README.md"
 
 [dependencies]
-intuicio-data = "0.45"
-intuicio-core = "0.45"
-intuicio-derive = "0.45"
-intuicio-framework-serde = "0.45"
-intuicio-framework-arena = "0.45"
+intuicio-data = "0.46"
+intuicio-core = "0.46"
+intuicio-derive = "0.46"
+intuicio-framework-serde = "0.46"
+intuicio-framework-arena = "0.46"
 serde = { version = "1", features = ["derive"] }

@@ -141,7 +141,7 @@ impl Prefab {
                     .map(|index| unsafe {
                         let data = arena.read_ptr(*index)?;
                         serialization
-                            .dynamic_serialize_from(arena.type_hash(), data)
+                            .dynamic_serialize_from(arena.type_hash(), data, registry)
                             .map_err(|_| PrefabError::CouldNotSerializeType {
                                 type_name: type_.name().to_owned(),
                                 module_name: type_.module_name().map(|name| name.to_owned()),
@@ -246,7 +246,7 @@ impl Prefab {
                     let (new_index, memory) = arena.allocate();
                     type_.initialize(memory.cast::<_>());
                     serialization
-                        .dynamic_deserialize_to(type_.type_hash(), memory, data)
+                        .dynamic_deserialize_to(type_.type_hash(), memory, data, true, registry)
                         .map_err(|_| PrefabError::CouldNotDeserializeType {
                             type_name: type_.name().to_owned(),
                             module_name: type_.module_name().map(|name| name.to_owned()),

@@ -88,7 +88,7 @@ mod tests {
             let tree = graph.insert(Tree);
             graph.relate_pair::<Parent, Child>(root, tree);
 
-            let name = graph.insert(format!("Tree {}", index));
+            let name = graph.insert(format!("Tree {index}"));
             graph.relate::<Attribute>(player, name);
 
             let health = graph.insert(Health(2));
@@ -103,7 +103,7 @@ mod tests {
             graph.query::<(Related<Child, &Controller>, Related<Child, &mut Position>)>(player)
         {
             if controller.forward {
-                println!("Player: {} moves forward!", player);
+                println!("Player: {player} moves forward!");
                 position.0 += 1;
                 position.1 += 2;
             }

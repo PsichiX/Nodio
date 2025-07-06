@@ -150,6 +150,32 @@ impl<'a, T> QueryTransform<'a> for IsNot<'a, T> {
     }
 }
 
+pub struct Copied<T: Copy>(PhantomData<fn() -> T>);
+
+impl<T: Copy> QueryTransform<'_> for Copied<T> {
+    type Input = AnyIndex;
+    type Output = T;
+
+    fn transform(graph: &Graph, input: Self::Input) -> impl Iterator<Item = Self::Output> {
+        graph.read(input).ok().map(|v| *v).into_iter()
+    }
+}
+
+pub struct Cloned<T: Clone>(PhantomData<fn() -> T>);
+
+impl<T: Clone> QueryTransform<'_> for Cloned<T> {
+    type Input = AnyIndex;
+    type Output = T;
+
+    fn transform(graph: &Graph, input: Self::Input) -> impl Iterator<Item = Self::Output> {
+        graph
+            .read(input)
+            .ok()
+            .map(|v: ValueReadAccess<'_, T>| v.clone())
+            .into_iter()
+    }
+}
+
 impl<'a, T> QueryTransform<'a> for &'a T {
     type Input = AnyIndex;
     type Output = ValueReadAccess<'a, T>;

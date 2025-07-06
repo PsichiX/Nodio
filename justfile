@@ -6,6 +6,7 @@ format:
 
 build:
   cargo build --all --all-features
+  cargo build --all --examples --all-features
 
 test:
   cargo test --all --all-features

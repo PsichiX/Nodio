@@ -108,44 +108,44 @@ impl<'a, T, Transform: QueryTransform<'a, Input = AnyIndex>> QueryFetch<'a>
     }
 }
 
-impl<'a> QueryTransform<'a> for AnyIndex {
+impl QueryTransform<'_> for AnyIndex {
     type Input = AnyIndex;
     type Output = AnyIndex;
 
-    fn transform(_: &'a Graph, input: Self::Input) -> impl Iterator<Item = Self::Output> {
+    fn transform(_: &Graph, input: Self::Input) -> impl Iterator<Item = Self::Output> {
         std::iter::once(input)
     }
 }
 
-pub struct Node<'a, T>(PhantomData<fn() -> &'a T>);
+pub struct Node<T>(PhantomData<fn() -> T>);
 
-impl<'a, T> QueryTransform<'a> for Node<'a, T> {
+impl<T> QueryTransform<'_> for Node<T> {
     type Input = AnyIndex;
     type Output = AnyIndex;
 
-    fn transform(graph: &'a Graph, input: Self::Input) -> impl Iterator<Item = Self::Output> {
+    fn transform(graph: &Graph, input: Self::Input) -> impl Iterator<Item = Self::Output> {
         graph.is::<T>(input).then_some(input).into_iter()
     }
 }
 
-pub struct Is<'a, T>(PhantomData<fn() -> &'a T>);
+pub struct Is<T>(PhantomData<fn() -> T>);
 
-impl<'a, T> QueryTransform<'a> for Is<'a, T> {
+impl<T> QueryTransform<'_> for Is<T> {
     type Input = AnyIndex;
     type Output = ();
 
-    fn transform(graph: &'a Graph, input: Self::Input) -> impl Iterator<Item = Self::Output> {
+    fn transform(graph: &Graph, input: Self::Input) -> impl Iterator<Item = Self::Output> {
         graph.is::<T>(input).then_some(()).into_iter()
     }
 }
 
-pub struct IsNot<'a, T>(PhantomData<fn() -> &'a T>);
+pub struct IsNot<T>(PhantomData<fn() -> T>);
 
-impl<'a, T> QueryTransform<'a> for IsNot<'a, T> {
+impl<T> QueryTransform<'_> for IsNot<T> {
     type Input = AnyIndex;
     type Output = ();
 
-    fn transform(graph: &'a Graph, input: Self::Input) -> impl Iterator<Item = Self::Output> {
+    fn transform(graph: &Graph, input: Self::Input) -> impl Iterator<Item = Self::Output> {
         (!graph.is::<T>(input)).then_some(()).into_iter()
     }
 }

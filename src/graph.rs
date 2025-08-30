@@ -83,7 +83,7 @@ impl Graph {
     ///
     /// # Returns
     /// A `Result` containing the read access to the node or an error.
-    pub fn read<T>(&self, index: AnyIndex) -> Result<ValueReadAccess<T>, ArenaError> {
+    pub fn read<T>(&'_ self, index: AnyIndex) -> Result<ValueReadAccess<'_, T>, ArenaError> {
         self.nodes.read(index)
     }
 
@@ -109,7 +109,7 @@ impl Graph {
     ///
     /// # Returns
     /// A `Result` containing the write access to the node or an error.
-    pub fn write<T>(&self, index: AnyIndex) -> Result<ValueWriteAccess<T>, ArenaError> {
+    pub fn write<T>(&'_ self, index: AnyIndex) -> Result<ValueWriteAccess<'_, T>, ArenaError> {
         self.nodes.write(index)
     }
 

@@ -22,7 +22,7 @@ mod tests {
         prefab::Prefab,
         query::{Is, Node, Query, Related, Traverse},
     };
-    use intuicio_core::prelude::*;
+    use intuicio_core::{registry::Registry, types::struct_type::NativeStructBuilder};
     use intuicio_framework_arena::AnyIndex;
     use intuicio_framework_serde::SerializationRegistry;
     use serde::{Deserialize, Serialize};

@@ -49,19 +49,6 @@ impl<'a> QueryFetch<'a> for () {
     }
 }
 
-impl<'a> QueryFetch<'a> for AnyIndex {
-    type Value = AnyIndex;
-    type Access = Option<AnyIndex>;
-
-    fn access(_: &'a Graph, index: AnyIndex) -> Self::Access {
-        Some(index)
-    }
-
-    fn fetch(access: &mut Self::Access) -> Option<Self::Value> {
-        access.take()
-    }
-}
-
 pub struct Related<'a, T, Transform: QueryTransform<'a, Input = AnyIndex>>(
     PhantomData<fn() -> &'a (T, Transform)>,
 );
@@ -105,15 +92,6 @@ impl<'a, T, Transform: QueryTransform<'a, Input = AnyIndex>> QueryFetch<'a>
 
     fn fetch(access: &mut Self::Access) -> Option<Self::Value> {
         access.next()
-    }
-}
-
-impl QueryTransform<'_> for AnyIndex {
-    type Input = AnyIndex;
-    type Output = AnyIndex;
-
-    fn transform(_: &Graph, input: Self::Input) -> impl Iterator<Item = Self::Output> {
-        std::iter::once(input)
     }
 }
 
@@ -176,12 +154,60 @@ impl<T: Clone> QueryTransform<'_> for Cloned<T> {
     }
 }
 
+impl<'a> QueryFetch<'a> for AnyIndex {
+    type Value = AnyIndex;
+    type Access = Option<AnyIndex>;
+
+    fn access(_: &'a Graph, index: AnyIndex) -> Self::Access {
+        Some(index)
+    }
+
+    fn fetch(access: &mut Self::Access) -> Option<Self::Value> {
+        access.take()
+    }
+}
+
+impl QueryTransform<'_> for AnyIndex {
+    type Input = AnyIndex;
+    type Output = AnyIndex;
+
+    fn transform(_: &Graph, input: Self::Input) -> impl Iterator<Item = Self::Output> {
+        std::iter::once(input)
+    }
+}
+
+impl<'a, T> QueryFetch<'a> for &'a T {
+    type Value = ValueReadAccess<'a, T>;
+    type Access = Option<ValueReadAccess<'a, T>>;
+
+    fn access(graph: &'a Graph, index: AnyIndex) -> Self::Access {
+        graph.read(index).ok()
+    }
+
+    fn fetch(access: &mut Self::Access) -> Option<Self::Value> {
+        access.take()
+    }
+}
+
 impl<'a, T> QueryTransform<'a> for &'a T {
     type Input = AnyIndex;
     type Output = ValueReadAccess<'a, T>;
 
     fn transform(graph: &'a Graph, input: Self::Input) -> impl Iterator<Item = Self::Output> {
         graph.read(input).ok().into_iter()
+    }
+}
+
+impl<'a, T> QueryFetch<'a> for &'a mut T {
+    type Value = ValueWriteAccess<'a, T>;
+    type Access = Option<ValueWriteAccess<'a, T>>;
+
+    fn access(graph: &'a Graph, index: AnyIndex) -> Self::Access {
+        graph.write(index).ok()
+    }
+
+    fn fetch(access: &mut Self::Access) -> Option<Self::Value> {
+        access.take()
     }
 }
 
@@ -194,12 +220,38 @@ impl<'a, T> QueryTransform<'a> for &'a mut T {
     }
 }
 
+impl<'a, T> QueryFetch<'a> for Option<&'a T> {
+    type Value = Option<ValueReadAccess<'a, T>>;
+    type Access = Option<Option<ValueReadAccess<'a, T>>>;
+
+    fn access(graph: &'a Graph, index: AnyIndex) -> Self::Access {
+        Some(graph.read(index).ok())
+    }
+
+    fn fetch(access: &mut Self::Access) -> Option<Self::Value> {
+        access.take()
+    }
+}
+
 impl<'a, T> QueryTransform<'a> for Option<&'a T> {
     type Input = AnyIndex;
     type Output = Option<ValueReadAccess<'a, T>>;
 
     fn transform(graph: &'a Graph, input: Self::Input) -> impl Iterator<Item = Self::Output> {
         std::iter::once(graph.read(input).ok())
+    }
+}
+
+impl<'a, T> QueryFetch<'a> for Option<&'a mut T> {
+    type Value = Option<ValueWriteAccess<'a, T>>;
+    type Access = Option<Option<ValueWriteAccess<'a, T>>>;
+
+    fn access(graph: &'a Graph, index: AnyIndex) -> Self::Access {
+        Some(graph.write(index).ok())
+    }
+
+    fn fetch(access: &mut Self::Access) -> Option<Self::Value> {
+        access.take()
     }
 }
 
@@ -227,7 +279,16 @@ impl<'a, const COUNT: usize, Transform: QueryTransform<'a>> QueryTransform<'a>
     }
 }
 
-pub type Single<'a, Transform> = Limit<'a, 1, Transform>;
+pub struct Single<'a, Transform: QueryTransform<'a>>(PhantomData<fn() -> &'a Transform>);
+
+impl<'a, Transform: QueryTransform<'a>> QueryTransform<'a> for Single<'a, Transform> {
+    type Input = Transform::Input;
+    type Output = Transform::Output;
+
+    fn transform(graph: &'a Graph, input: Self::Input) -> impl Iterator<Item = Self::Output> {
+        Transform::transform(graph, input).take(1)
+    }
+}
 
 pub struct Query<'a, Transform, Fetch>(PhantomData<fn() -> &'a (Transform, Fetch)>)
 where

@@ -1,6 +1,6 @@
 [package]
 name = "nodio"
-version = "0.4.4"
+version = "0.4.5"
 edition = "2024"
 authors = ["Patryk 'PsichiX' Budzynski <psichix@gmail.com>"]
 description = "Ergonomic graph data storage with queries over relations"

@@ -53,9 +53,15 @@ impl RelationsTable {
             .flat_map(|set| set.iter().copied())
     }
 
-    pub(crate) fn iter(&self) -> impl Iterator<Item = (AnyIndex, AnyIndex)> + '_ {
+    pub(crate) fn iter_outgoing(&self) -> impl Iterator<Item = (AnyIndex, AnyIndex)> + '_ {
         self.outgoing
             .iter()
             .flat_map(|(from, set)| set.iter().map(move |to| (*from, *to)))
+    }
+
+    pub(crate) fn iter_incoming(&self) -> impl Iterator<Item = (AnyIndex, AnyIndex)> + '_ {
+        self.incoming
+            .iter()
+            .flat_map(|(to, set)| set.iter().map(move |from| (*from, *to)))
     }
 }

@@ -170,7 +170,7 @@ impl Prefab {
                     module_name: type_.module_name().map(|name| name.to_owned()),
                 };
                 let mut pairs = Vec::<PrefabRelationsPair>::default();
-                for (source, target) in table.iter() {
+                for (source, target) in table.iter_outgoing() {
                     let source_type = registry
                         .find_type(TypeQuery {
                             type_hash: Some(source.type_hash()),

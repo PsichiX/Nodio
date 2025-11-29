@@ -220,6 +220,19 @@ impl Graph {
             .unwrap_or_default()
     }
 
+    /// Gets iterator over all relations in the graph.
+    ///
+    /// # Returns
+    /// An iterator over tuples containing the type hash and the indices of the
+    /// related nodes.
+    pub fn relations(&self) -> impl Iterator<Item = (TypeHash, AnyIndex, AnyIndex)> + '_ {
+        self.relations.iter().flat_map(|(type_hash, relations)| {
+            relations
+                .iter_outgoing()
+                .map(|(from, to)| (*type_hash, from, to))
+        })
+    }
+
     /// Gets iterator over all outgoing relations from the specified source node
     /// with the specified relation category.
     ///
@@ -233,6 +246,18 @@ impl Graph {
     /// An iterator over the indices of the target nodes.
     pub fn relations_outgoing<T>(&self, from: AnyIndex) -> impl Iterator<Item = AnyIndex> + '_ {
         self.relations_outgoing_raw(from, TypeHash::of::<T>())
+    }
+
+    /// Gets iterator over all outgoing relations in graph, no matter the source,
+    /// with specified relation category.
+    ///
+    /// # Type Parameters
+    /// * `T` - The type of the relation category.
+    ///
+    /// # Returns
+    /// An iterator over tuples containing the indices of the related nodes.
+    pub fn relations_outgoing_all<T>(&self) -> impl Iterator<Item = (AnyIndex, AnyIndex)> + '_ {
+        self.relations_outgoing_all_raw(TypeHash::of::<T>())
     }
 
     /// Gets iterator over all outgoing relations from the specified source node
@@ -253,6 +278,24 @@ impl Graph {
             .get(&type_hash)
             .into_iter()
             .flat_map(move |relations| relations.outgoing(from))
+    }
+
+    /// Gets iterator over all outgoing relations in graph, no matter the source,
+    /// with specified relation category.
+    ///
+    /// # Arguments
+    /// * `type_hash` - The type hash of the relation category.
+    ///
+    /// # Returns
+    /// An iterator over tuples containing the indices of the related nodes.
+    pub fn relations_outgoing_all_raw(
+        &self,
+        type_hash: TypeHash,
+    ) -> impl Iterator<Item = (AnyIndex, AnyIndex)> + '_ {
+        self.relations
+            .get(&type_hash)
+            .into_iter()
+            .flat_map(move |relations| relations.iter_outgoing())
     }
 
     /// Gets iterator over all outgoing relations from the specified source node
@@ -284,6 +327,18 @@ impl Graph {
         self.relations_incomming_raw(to, TypeHash::of::<T>())
     }
 
+    /// Gets iterator over all incoming relations in graph, no matter the target,
+    /// with specified relation category.
+    ///
+    /// # Type Parameters
+    /// * `T` - The type of the relation category.
+    ///
+    /// # Returns
+    /// An iterator over tuples containing the indices of the related nodes.
+    pub fn relations_incomming_all<T>(&self) -> impl Iterator<Item = (AnyIndex, AnyIndex)> + '_ {
+        self.relations_incomming_all_raw(TypeHash::of::<T>())
+    }
+
     /// Gets iterator over incoming relations to the specified target node
     /// with the specified relation category.
     ///
@@ -302,6 +357,24 @@ impl Graph {
             .get(&type_hash)
             .into_iter()
             .flat_map(move |relations| relations.incoming(to))
+    }
+
+    /// Gets iterator over all incoming relations in graph, no matter the target,
+    /// with specified relation category.
+    ///
+    /// # Arguments
+    /// * `type_hash` - The type hash of the relation category.
+    ///
+    /// # Returns
+    /// An iterator over tuples containing the indices of the related nodes.
+    pub fn relations_incomming_all_raw(
+        &self,
+        type_hash: TypeHash,
+    ) -> impl Iterator<Item = (AnyIndex, AnyIndex)> + '_ {
+        self.relations
+            .get(&type_hash)
+            .into_iter()
+            .flat_map(move |relations| relations.iter_incoming())
     }
 
     /// Gets iterator over incoming relations to the specified target node
@@ -424,17 +497,6 @@ impl Graph {
     /// An iterator over the indices of the nodes.
     pub fn indices(&self) -> impl Iterator<Item = AnyIndex> + '_ {
         self.nodes.indices()
-    }
-
-    /// Gets iterator over all relations in the graph.
-    ///
-    /// # Returns
-    /// An iterator over tuples containing the type hash and the indices of the
-    /// related nodes.
-    pub fn relations(&self) -> impl Iterator<Item = (TypeHash, AnyIndex, AnyIndex)> + '_ {
-        self.relations.iter().flat_map(|(type_hash, relations)| {
-            relations.iter().map(|(from, to)| (*type_hash, from, to))
-        })
     }
 
     /// Finds all cycles in the graph for the specified relation category.

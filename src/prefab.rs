@@ -240,7 +240,13 @@ impl Prefab {
                 })?;
             unsafe {
                 let arena = {
-                    nodes.ensure_arena_raw(type_.type_hash(), *type_.layout(), type_.finalizer())
+                    nodes.ensure_arena_raw(
+                        type_.type_hash(),
+                        *type_.layout(),
+                        type_.finalizer().as_native().expect(
+                            "Runtime types are not supported by node arenas - the arena needs a native finalizer!",
+                        ),
+                    )
                 };
                 for (old_index, data) in archetype.indices.iter().zip(archetype.data.iter()) {
                     let (new_index, memory) = arena.allocate();

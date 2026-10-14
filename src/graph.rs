@@ -52,7 +52,7 @@ impl Graph {
     pub fn remove(&mut self, index: AnyIndex) -> Result<(), Box<dyn Error>> {
         self.nodes.remove(index)?;
         for relation in self.relations.values_mut() {
-            relation.remove_all(index);
+            relation.remove_node(index);
         }
         Ok(())
     }
@@ -203,6 +203,54 @@ impl Graph {
             .entry(TypeHash::of::<T>())
             .or_default()
             .remove_all(from);
+    }
+
+    /// Relates two nodes and puts the relation at `index` in the outgoing
+    /// order of the source node. An existing relation moves to `index`.
+    /// An index past the end puts the relation last.
+    ///
+    /// # Arguments
+    /// * `from` - The index of the source node.
+    /// * `to` - The index of the target node.
+    /// * `index` - The position in the outgoing order of `from`.
+    ///
+    /// # Type Parameters
+    /// * `T` - The type of the relation category.
+    pub fn relate_at<T>(&mut self, from: AnyIndex, to: AnyIndex, index: usize) {
+        self.relations
+            .entry(TypeHash::of::<T>())
+            .or_default()
+            .insert_at(from, to, index);
+    }
+
+    /// Moves an existing relation to `index` in the outgoing order of the
+    /// source node. Does nothing when the nodes are not related.
+    ///
+    /// # Arguments
+    /// * `from` - The index of the source node.
+    /// * `to` - The index of the target node.
+    /// * `index` - The new position in the outgoing order of `from`.
+    ///
+    /// # Type Parameters
+    /// * `T` - The type of the relation category.
+    pub fn move_relation<T>(&mut self, from: AnyIndex, to: AnyIndex, index: usize) {
+        if let Some(relations) = self.relations.get_mut(&TypeHash::of::<T>())
+            && relations.contains(from, to)
+        {
+            relations.insert_at(from, to, index);
+        }
+    }
+
+    /// Gets the position of a relation in the outgoing order of the source node.
+    ///
+    /// # Arguments
+    /// * `from` - The index of the source node.
+    /// * `to` - The index of the target node.
+    ///
+    /// # Type Parameters
+    /// * `T` - The type of the relation category.
+    pub fn relation_index<T>(&self, from: AnyIndex, to: AnyIndex) -> Option<usize> {
+        self.relations.get(&TypeHash::of::<T>())?.index_of(from, to)
     }
 
     /// Checks if two nodes are related with the specified relation category.

@@ -186,4 +186,173 @@ mod tests {
         graph.relate::<()>(d, a);
         assert!(graph.find_cycles::<()>().next().is_some());
     }
+
+    fn children(graph: &Graph, parent: AnyIndex) -> Vec<AnyIndex> {
+        graph.relations_outgoing::<Child>(parent).collect()
+    }
+
+    fn assert_no_relations_with(graph: &Graph, index: AnyIndex) {
+        assert!(
+            graph
+                .relations()
+                .all(|(_, from, to)| from != index && to != index)
+        );
+        assert!(graph.relations_incomming::<Child>(index).next().is_none());
+        assert!(graph.relations_outgoing::<Child>(index).next().is_none());
+    }
+
+    #[test]
+    fn test_order_after_insert() {
+        let mut graph = Graph::default();
+        let root = graph.insert(());
+        let nodes = (0..8).map(|_| graph.insert(())).collect::<Vec<_>>();
+        for node in &nodes {
+            graph.relate::<Child>(root, *node);
+        }
+        assert_eq!(children(&graph, root), nodes);
+
+        let first = graph.insert(());
+        graph.relate_at::<Child>(root, first, 0);
+        let middle = graph.insert(());
+        graph.relate_at::<Child>(root, middle, 4);
+        let last = graph.insert(());
+        graph.relate_at::<Child>(root, last, 100);
+
+        let mut expected = nodes.clone();
+        expected.insert(0, first);
+        expected.insert(4, middle);
+        expected.push(last);
+        assert_eq!(children(&graph, root), expected);
+        assert_eq!(graph.relation_index::<Child>(root, middle), Some(4));
+        assert_eq!(graph.relation_index::<Child>(middle, root), None);
+    }
+
+    #[test]
+    fn test_order_after_remove() {
+        let mut graph = Graph::default();
+        let root = graph.insert(());
+        let nodes = (0..6).map(|_| graph.insert(())).collect::<Vec<_>>();
+        for node in &nodes {
+            graph.relate_pair::<Parent, Child>(root, *node);
+        }
+
+        graph.unrelate::<Child>(root, nodes[1]);
+        graph.remove(nodes[3]).unwrap();
+        assert_eq!(
+            children(&graph, root),
+            vec![nodes[0], nodes[2], nodes[4], nodes[5]]
+        );
+        assert!(
+            graph
+                .relations_incomming::<Child>(nodes[1])
+                .next()
+                .is_none()
+        );
+        assert_no_relations_with(&graph, nodes[3]);
+        assert!(
+            graph
+                .relations_outgoing::<Parent>(nodes[3])
+                .next()
+                .is_none()
+        );
+        assert!(
+            graph
+                .relations_incomming::<Parent>(root)
+                .all(|index| index != nodes[3])
+        );
+    }
+
+    #[test]
+    fn test_order_after_move() {
+        let mut graph = Graph::default();
+        let root = graph.insert(());
+        let nodes = (0..5).map(|_| graph.insert(())).collect::<Vec<_>>();
+        for node in &nodes {
+            graph.relate::<Child>(root, *node);
+        }
+
+        graph.move_relation::<Child>(root, nodes[4], 0);
+        graph.move_relation::<Child>(root, nodes[1], 3);
+        assert_eq!(
+            children(&graph, root),
+            vec![nodes[4], nodes[0], nodes[2], nodes[1], nodes[3]]
+        );
+
+        let stranger = graph.insert(());
+        graph.move_relation::<Child>(root, stranger, 0);
+        assert!(!graph.are_related::<Child>(root, stranger));
+
+        graph.relate_at::<Child>(root, nodes[3], 1);
+        assert_eq!(
+            children(&graph, root),
+            vec![nodes[4], nodes[3], nodes[0], nodes[2], nodes[1]]
+        );
+        assert_eq!(
+            graph
+                .relations_incomming::<Child>(nodes[3])
+                .collect::<Vec<_>>(),
+            vec![root]
+        );
+    }
+
+    #[test]
+    fn test_unrelate_leaves_no_stale_incoming() {
+        let mut graph = Graph::default();
+        let a = graph.insert(());
+        let b = graph.insert(());
+        graph.relate::<Child>(a, b);
+        graph.unrelate::<Child>(a, b);
+        assert!(graph.relations_incomming::<Child>(b).next().is_none());
+        assert!(graph.relations_outgoing::<Child>(a).next().is_none());
+        assert!(graph.relations.values().all(|table| table.is_empty()));
+    }
+
+    #[test]
+    fn test_remove_leaves_no_stale_relations() {
+        let mut graph = Graph::default();
+        let parent = graph.insert(());
+        let node = graph.insert(());
+        let child = graph.insert(());
+        graph.relate_pair::<Parent, Child>(parent, node);
+        graph.relate_pair::<Parent, Child>(node, child);
+        graph.relate::<Effect>(child, node);
+
+        graph.remove(node).unwrap();
+        assert_no_relations_with(&graph, node);
+        assert!(children(&graph, parent).is_empty());
+        assert!(graph.relations_incomming::<Effect>(node).next().is_none());
+        assert!(graph.relations_outgoing::<Effect>(child).next().is_none());
+
+        graph.remove(parent).unwrap();
+        graph.remove(child).unwrap();
+        assert!(graph.relations.values().all(|table| table.is_empty()));
+    }
+
+    #[test]
+    fn test_prefab_keeps_order() {
+        let mut graph = Graph::default();
+        let root = graph.insert(Tree);
+        let nodes = (0..16).map(|_| graph.insert(Tree)).collect::<Vec<_>>();
+        for node in nodes.iter().rev() {
+            graph.relate::<Child>(root, *node);
+        }
+        graph.move_relation::<Child>(root, nodes[7], 0);
+
+        let registry = Registry::default()
+            .with_basic_types()
+            .with_type(NativeStructBuilder::new::<Child>().build())
+            .with_type(NativeStructBuilder::new::<Tree>().build());
+        let serialization = SerializationRegistry::default()
+            .with_basic_types()
+            .with_serde::<Child>()
+            .with_serde::<Tree>();
+
+        let prefab = Prefab::from_graph(&graph, &serialization, &registry).unwrap();
+        let (graph2, mappings) = prefab.to_graph(&serialization, &registry).unwrap();
+        let expected = children(&graph, root)
+            .into_iter()
+            .map(|index| mappings[&index])
+            .collect::<Vec<_>>();
+        assert_eq!(children(&graph2, mappings[&root]), expected);
+    }
 }
